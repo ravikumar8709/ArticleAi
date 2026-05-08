@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Article Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0d0d0d;
+      --bg-secondary: #161616;
+      --bg-tertiary: #1e1e1e;
+      --bg-hover: #242424;
+      --border: #2a2a2a;
+      --border-light: #333;
+      --text-primary: #ececec;
+      --text-secondary: #a0a0a0;
+      --text-muted: #555;
+      --accent: #10a37f;
+      --accent-hover: #0d8f6f;
+      --accent-glow: rgba(16,163,127,0.15);
+      --accent-glow-sm: rgba(16,163,127,0.08);
+      --red: #ef4444;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Sora', sans-serif;
+      background: var(--bg-primary);
+      min-height: 100vh;
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 16px 80px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Subtle background grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(16,163,127,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16,163,127,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Top glow bleed */
+    body::after {
+      content: '';
+      position: fixed;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 700px;
+      height: 400px;
+      background: radial-gradient(ellipse, rgba(16,163,127,0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 720px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── NAVBAR ── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 0 48px;
+      width: 100%;
+      max-width: 720px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .logo-text {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.2px;
+    }
+
+    .nav-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: breathe 2.5s ease-in-out infinite;
+    }
+
+    @keyframes breathe {
+      0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--accent); }
+      50% { opacity: 0.4; box-shadow: none; }
+    }
+
+    /* ── HERO ── */
+    .hero {
+      text-align: center;
+      margin-bottom: 48px;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--accent-glow-sm);
+      border: 1px solid rgba(16,163,127,0.2);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 11.5px;
+      color: var(--accent);
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: clamp(28px, 5vw, 42px);
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -1px;
+      line-height: 1.15;
+      margin-bottom: 14px;
+    }
+
+    h1 span {
+      background: linear-gradient(135deg, #10a37f, #5ae8c5);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      max-width: 480px;
+      margin: 0 auto;
+      font-weight: 300;
+    }
+
+    /* ── MAIN CARD ── */
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 16px;
+      animation: fadeUp 0.6s 0.1s ease both;
+      transition: border-color 0.2s;
+    }
+
+    .card:focus-within {
+      border-color: rgba(16,163,127,0.35);
+      box-shadow: 0 0 0 4px var(--accent-glow-sm);
+    }
+
+    .input-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .input-label::before {
+      content: '';
+      width: 3px;
+      height: 12px;
+      background: var(--accent);
+      border-radius: 2px;
+      display: inline-block;
+    }
+
+    .input-wrap {
+      position: relative;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 13px 18px;
+      font-size: 15px;
+      font-family: 'Sora', sans-serif;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input[type="text"]::placeholder { color: var(--text-muted); }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow-sm);
+    }
+
+    .generate-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 13px 22px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'Sora', sans-serif;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      white-space: nowrap;
+      transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .generate-btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.08), transparent);
+      pointer-events: none;
+    }
+
+    .generate-btn:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 0 20px rgba(16,163,127,0.3);
+    }
+
+    .generate-btn:active { transform: scale(0.97); }
+    .generate-btn:disabled { background: #2a2a2a; color: var(--text-muted); cursor: not-allowed; box-shadow: none; transform: none; }
+
+    .btn-icon {
+      width: 16px;
+      height: 16px;
+      opacity: 0.9;
+    }
+
+    /* ── CHIPS ── */
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 16px;
+    }
+
+    .chip {
+      font-size: 12px;
+      font-family: 'Sora', sans-serif;
+      padding: 5px 13px;
+      border-radius: 20px;
+      border: 1px solid var(--border-light);
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+
+    .chip:hover {
+      border-color: rgba(16,163,127,0.4);
+      color: var(--accent);
+      background: var(--accent-glow-sm);
+    }
+
+    /* ── STATUS ── */
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 28px;
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid var(--border-light);
+      border-top-color: var(--accent);
+      animation: spin 0.65s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Typing dots */
+    .dots span {
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin: 0 2px;
+      animation: dot 1.2s ease-in-out infinite;
+    }
+    .dots span:nth-child(2) { animation-delay: 0.2s; }
+    .dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dot {
+      0%, 80%, 100% { transform: scale(0.7); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    .error-msg {
+      font-size: 13px;
+      color: var(--red);
+      margin-top: 10px;
+      display: none;
+      padding: 10px 14px;
+      background: rgba(239,68,68,0.06);
+      border: 1px solid rgba(239,68,68,0.15);
+      border-radius: var(--radius-sm);
+      line-height: 1.5;
+    }
+
+    .error-msg.visible { display: block; }
+
+    /* ── RESULT CARD ── */
+    .result-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      pointer-events: none;
+      animation: fadeUp 0.4s ease both;
+    }
+
+    .result-card.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    /* Top bar */
+    .result-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-tertiary);
+    }
+
+    .result-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .meta-badge {
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 3px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border-light);
+      color: var(--text-muted);
+    }
+
+    .meta-badge.green {
+      border-color: rgba(16,163,127,0.3);
+      color: var(--accent);
+      background: var(--accent-glow-sm);
+    }
+
+    .result-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .icon-btn {
+      font-size: 12px;
+      font-family: 'Sora', sans-serif;
+      padding: 5px 13px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-light);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .icon-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: rgba(255,255,255,0.1);
+    }
+
+    /* Article body */
+    .result-body {
+      padding: 28px 32px;
+    }
+
+    .article-category {
+      font-size: 10.5px;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      opacity: 0.85;
+    }
+
+    .article-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
+      line-height: 1.35;
+      margin-bottom: 20px;
+    }
+
+    .article-divider {
+      width: 36px;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), transparent);
+      border-radius: 2px;
+      margin-bottom: 20px;
+    }
+
+    .article-text {
+      font-size: 15px;
+      color: #c0c0c0;
+      line-height: 1.85;
+      white-space: pre-wrap;
+      font-weight: 300;
+    }
+
+    /* Footer */
+    .result-footer {
+      padding: 12px 18px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-stats {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .stat {
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .stat strong {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .powered-by {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 520px) {
+      nav { padding: 16px 0 36px; }
+      .input-wrap { flex-direction: column; }
+      .generate-btn { width: 100%; justify-content: center; }
+      .result-body { padding: 22px 20px; }
+      .result-footer { flex-direction: column; gap: 6px; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-logo">
+      <div class="logo-icon">✦</div>
+      <span class="logo-text">ArticleAI</span>
+    </div>
+    <div class="nav-pill">
+      <span class="status-dot"></span>
+      live · n8n workflow
+    </div>
+  </nav>
+
+  <div class="container">
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="hero-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        Powered by n8n + GPT-4o mini
+      </div>
+      <h1>Generate any article<br>with <span>AI, instantly</span></h1>
+      <p class="subtitle">Enter a topic and get a fully written, well-structured article in seconds.</p>
+    </div>
+
+    <!-- INPUT CARD -->
+    <div class="card">
+      <div class="input-label">Article Topic</div>
+      <div class="input-wrap">
+        <input
+          type="text"
+          id="topic-input"
+          placeholder="e.g. The future of solar energy…"
+          autocomplete="off"
+        />
+        <button class="generate-btn" id="gen-btn" onclick="generate()">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          Generate
+        </button>
+      </div>
+
+      <div class="chips">
+        <span class="chip" onclick="setTopic('The impact of AI on modern healthcare')">🧬 AI & Healthcare</span>
+        <span class="chip" onclick="setTopic('Climate change and urban planning')">🌍 Climate & Cities</span>
+        <span class="chip" onclick="setTopic('The rise of remote work culture')">💼 Remote Work</span>
+        <span class="chip" onclick="setTopic('Quantum computing explained simply')">⚛️ Quantum Computing</span>
+        <span class="chip" onclick="setTopic('Mental health in the digital age')">🧠 Mental Health</span>
+      </div>
+
+      <div class="status-row" id="status"></div>
+      <div class="error-msg" id="error-msg"></div>
+    </div>
+
+    <!-- RESULT CARD -->
+    <div class="result-card" id="result-card">
+      <div class="result-topbar">
+        <div class="result-meta">
+          <span class="meta-badge green">✓ Generated</span>
+          <span class="meta-badge">GPT-4o mini</span>
+          <span class="meta-badge">n8n</span>
+        </div>
+        <div class="result-actions">
+          <button class="icon-btn" onclick="copyArticle()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            Copy
+          </button>
+          <button class="icon-btn" onclick="resetForm()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.87"/></svg>
+            New
+          </button>
+        </div>
+      </div>
+
+      <div class="result-body">
+        <p class="article-category" id="result-topic"></p>
+        <h2 class="article-title" id="result-title"></h2>
+        <div class="article-divider"></div>
+        <p class="article-text" id="result-text"></p>
+      </div>
+
+      <div class="result-footer">
+        <div class="footer-stats">
+          <span class="stat">Words: <strong id="word-count">—</strong></span>
+          <span class="stat">Chars: <strong id="char-count">—</strong></span>
+        </div>
+        <span class="powered-by">ravi40181.app.n8n.cloud</span>
+      </div>
+    </div>
+
+  </div><!-- /container -->
+
+<script>
+  const N8N_URL = 'https://ravi40181.app.n8n.cloud/webhook/79ae0849-3477-417b-9c70-69cf5b08ef6a';
+
+  function setTopic(t) {
+    document.getElementById('topic-input').value = t;
+    document.getElementById('topic-input').focus();
+  }
+
+  function setStatus(msg, type) {
+    const el = document.getElementById('status');
+    if (!msg) { el.innerHTML = ''; return; }
+    if (type === 'loading') {
+      el.innerHTML = `<div class="spinner"></div><span>${msg}</span>`;
+    } else if (type === 'dots') {
+      el.innerHTML = `<div class="dots"><span></span><span></span><span></span></div><span>${msg}</span>`;
+    } else {
+      el.innerHTML = `<span>${msg}</span>`;
+    }
+  }
+
+  function countWords(str) {
+    return str.trim().split(/\s+/).filter(Boolean).length;
+  }
+
+  async function generate() {
+    const topic = document.getElementById('topic-input').value.trim();
+    if (!topic) { document.getElementById('topic-input').focus(); return; }
+
+    const btn = document.getElementById('gen-btn');
+    const errorEl = document.getElementById('error-msg');
+    const card = document.getElementById('result-card');
+
+    btn.disabled = true;
+    errorEl.classList.remove('visible');
+    card.classList.remove('visible');
+
+    setStatus('Sending to workflow…', 'loading');
+    await new Promise(r => setTimeout(r, 800));
+    setStatus('AI is writing your article…', 'dots');
+
+    try {
+      const res = await fetch(N8N_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic })
+      });
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`Workflow error ${res.status}${txt ? ': ' + txt.slice(0, 120) : ''}`);
+      }
+
+      const data = await res.json();
+      const article = data.article || data.text || data.content || JSON.stringify(data);
+      const title = data.title || topic;
+      const wc = countWords(article);
+
+      document.getElementById('result-topic').textContent = topic.toUpperCase();
+      document.getElementById('result-title').textContent = title;
+      document.getElementById('result-text').textContent = article;
+      document.getElementById('word-count').textContent = wc;
+      document.getElementById('char-count').textContent = article.length;
+
+      setStatus('');
+      card.classList.add('visible');
+      setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+
+    } catch (err) {
+      setStatus('');
+      errorEl.textContent = '⚠ ' + (err.message || 'Could not reach the workflow.');
+      errorEl.classList.add('visible');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function copyArticle() {
+    const title = document.getElementById('result-title').textContent;
+    const text = document.getElementById('result-text').textContent;
+    navigator.clipboard.writeText(title + '\n\n' + text).then(() => {
+      const btn = event.target.closest('button');
+      const orig = btn.innerHTML;
+      btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!`;
+      setTimeout(() => { btn.innerHTML = orig; }, 2200);
+    });
+  }
+
+  function resetForm() {
+    document.getElementById('result-card').classList.remove('visible');
+    document.getElementById('topic-input').value = '';
+    document.getElementById('topic-input').focus();
+    document.getElementById('status').innerHTML = '';
+  }
+
+  document.getElementById('topic-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') generate();
+  });
+</script>
+</body>
+</html>
